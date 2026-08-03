@@ -4,6 +4,7 @@ import imaplib
 import email
 import re
 import os
+from email.utils import parsedate_to_datetime
 
 TOKEN = os.getenv("TOKEN")
 EMAIL = os.getenv("EMAIL")
@@ -23,6 +24,7 @@ def pobierz_kod(tresc):
         r'kod[:\s]*(\d{4,8})',
         r'code[:\s]*(\d{4,8})',
         r'hasło[:\s]*(\d{4,8})',
+        r'logowania[:\s]*(\d{4,8})',
     ]
     for wzor in wzorce:
         wynik = re.search(wzor, tresc, re.IGNORECASE)
@@ -36,12 +38,19 @@ def sprawdz_poczte():
         mail.login(EMAIL, HASLO)
         mail.select("inbox")
 
-        status, wiadomosci = mail.search(None, "UNSEEN")
+        # Pobieramy ostatnie 15 maili (od najnowszych)
+        status, wiadomosci = mail.search(None, "ALL")
         if status != "OK" or not wiadomosci[0]:
             mail.logout()
             return None
 
-        for num in wiadomosci[0].split():
+        numery = wiadomosci[0].split()
+        # Bierzemy od najnowszych
+        numery = numery[-15:]
+
+        znalezione = []
+
+        for num in reversed(numery):  # od najnowszego
             status, dane = mail.fetch(num, "(RFC822)")
             if status != "OK":
                 continue
@@ -64,6 +73,7 @@ def sprawdz_poczte():
 
             kod = pobierz_kod(tresc)
             if kod:
+                # Oznaczamy jako przeczytany
                 mail.store(num, '+FLAGS', '\\Seen')
                 mail.logout()
                 return kod
