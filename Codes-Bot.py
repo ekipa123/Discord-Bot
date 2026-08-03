@@ -4,7 +4,7 @@ import imaplib
 import email
 import re
 import os
-from email.utils import parsedate_to_datetime
+from bs4 import BeautifulSoup
 
 TOKEN = os.getenv("TOKEN")
 EMAIL = os.getenv("EMAIL")
@@ -16,20 +16,16 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 def pobierz_kod(tresc):
     wzorce = [
-        r'\b\d{6}\b',
-        r'\b\d{4}\b',
-        r'\b\d{5}\b',
-        r'\b\d{7}\b',
-        r'\b\d{8}\b',
-        r'kod[:\s]*(\d{4,8})',
-        r'code[:\s]*(\d{4,8})',
-        r'hasło[:\s]*(\d{4,8})',
-        r'logowania[:\s]*(\d{4,8})',
+        r'kod logowania[:\s]*(\d{6})',
+        r'kod[:\s]*(\d{6})',
+        r'code[:\s]*(\d{6})',
+        r'logowania[:\s]*(\d{6})',
+        r'\b(\d{6})\b',
     ]
     for wzor in wzorce:
         wynik = re.search(wzor, tresc, re.IGNORECASE)
         if wynik:
-            return wynik.group(1) if wynik.groups() else wynik.group(0)
+            return wynik.group(1)
     return None
 
 def sprawdz_poczte():
@@ -38,33 +34,37 @@ def sprawdz_poczte():
         mail.login(EMAIL, HASLO)
         mail.select("inbox")
 
-        # Pobieramy ostatnie 15 maili (od najnowszych)
         status, wiadomosci = mail.search(None, "ALL")
         if status != "OK" or not wiadomosci[0]:
             mail.logout()
             return None
 
-        numery = wiadomosci[0].split()
-        # Bierzemy od najnowszych
-        numery = numery[-15:]
+        numery = wiadomosci[0].split()[-10:]
 
-        znalezione = []
-
-        for num in reversed(numery):  # od najnowszego
+        for num in reversed(numery):
             status, dane = mail.fetch(num, "(RFC822)")
             if status != "OK":
                 continue
 
             msg = email.message_from_bytes(dane[0][1])
-
             tresc = ""
+
             if msg.is_multipart():
                 for part in msg.walk():
-                    if part.get_content_type() == "text/plain":
-                        try:
-                            tresc += part.get_payload(decode=True).decode(errors="ignore")
-                        except:
-                            pass
+                    content_type = part.get_content_type()
+                    try:
+                        payload = part.get_payload(decode=True)
+                        if not payload:
+                            continue
+                        tekst = payload.decode(errors="ignore")
+
+                        if content_type == "text/plain":
+                            tresc += tekst + " "
+                        elif content_type == "text/html":
+                            soup = BeautifulSoup(tekst, "html.parser")
+                            tresc += soup.get_text(separator=" ") + " "
+                    except:
+                        continue
             else:
                 try:
                     tresc = msg.get_payload(decode=True).decode(errors="ignore")
@@ -73,7 +73,6 @@ def sprawdz_poczte():
 
             kod = pobierz_kod(tresc)
             if kod:
-                # Oznaczamy jako przeczytany
                 mail.store(num, '+FLAGS', '\\Seen')
                 mail.logout()
                 return kod
@@ -88,6 +87,20 @@ def sprawdz_poczte():
 @bot.event
 async def on_ready():
     print(f"Bot działa jako {bot.user}")
+    try:
+        synced = await bot.tree.sync()
+        print(f"Zsynchronizowano {len(synced)} komend slash")
+    except Exception as e:
+        print(f"Błąd synchronizacji: {e}")
+
+@bot.tree.command(name="kod", description="Sprawdza najnowszy kod z poczty")
+async def kod_slash(interaction: discord.Interaction):
+    await interaction.response.defer()
+    znaleziony_kod = sprawdz_poczte()
+    if znaleziony_kod:
+        await interaction.followup.send(f"**Kod do logowania:** `{znaleziony_kod}`")
+    else:
+        await interaction.followup.send("Nie znalazłem żadnego nowego kodu.")
 
 @bot.command()
 async def kod(ctx):
