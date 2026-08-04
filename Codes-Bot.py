@@ -34,7 +34,8 @@ def sprawdz_poczte():
         mail.login(EMAIL, HASLO)
         mail.select("inbox")
 
-        status, wiadomosci = mail.search(None, "ALL")
+        # Zamiast "ALL" szukamy wiadomości tylko od konkretnego nadawcy
+        status, wiadomosci = mail.search(None, '(FROM "hello@maturazlewusem.pl")')
         if status != "OK" or not wiadomosci[0]:
             mail.logout()
             return None
@@ -98,17 +99,17 @@ async def kod_slash(interaction: discord.Interaction):
     await interaction.response.defer()
     znaleziony_kod = sprawdz_poczte()
     if znaleziony_kod:
-        await interaction.followup.send(f"**Kod do logowania:** `{znaleziony_kod}`")
+        await interaction.followup.send(f"kod logowania do kursu maturalnego: `{znaleziony_kod}`")
     else:
-        await interaction.followup.send("Nie znalazłem żadnego nowego kodu.")
+        await interaction.followup.send("Nie znalazłem żadnego nowego kodu od podanego nadawcy.")
 
 @bot.command()
 async def kod(ctx):
     await ctx.send("Sprawdzam pocztę...")
     znaleziony_kod = sprawdz_poczte()
     if znaleziony_kod:
-        await ctx.send(f"**Kod do logowania:** `{znaleziony_kod}`")
+        await ctx.send(f"kod logowania do kursu maturalnego: `{znaleziony_kod}`")
     else:
-        await ctx.send("Nie znalazłem żadnego nowego kodu.")
+        await ctx.send("Nie znalazłem żadnego nowego kodu od podanego nadawcy.")
 
 bot.run(TOKEN)
