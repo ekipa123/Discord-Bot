@@ -34,7 +34,8 @@ def sprawdz_poczte():
         mail.login(EMAIL, HASLO)
         mail.select("inbox")
 
-        status, wiadomosci = mail.search(None, '(FROM "hello@maturazlewusem.pl")')
+        # Szukamy TYLKO nieprzeczytanych wiadomości (UNSEEN) od podanego nadawcy
+        status, wiadomosci = mail.search(None, '(UNSEEN FROM "hello@maturazlewusem.pl")')
         if status != "OK" or not wiadomosci[0]:
             mail.logout()
             return None
@@ -73,6 +74,7 @@ def sprawdz_poczte():
 
             kod = pobierz_kod(tresc)
             if kod:
+                # Oznaczamy maila jako przeczytany, żeby następnym razem bot go pominął
                 mail.store(num, '+FLAGS', '\\Seen')
                 mail.logout()
                 return kod
@@ -100,7 +102,7 @@ async def kod_slash(interaction: discord.Interaction):
     if znaleziony_kod:
         await interaction.followup.send(f"**Kod logowania do kursu maturalnego:** `{znaleziony_kod}`")
     else:
-        await interaction.followup.send("Nie znalazłem żadnego nowego kodu od podanego nadawcy.")
+        await interaction.followup.send("Nowy kod logowania nie jest jeszcze dostępny.")
 
 @bot.command()
 async def kod(ctx):
@@ -109,6 +111,6 @@ async def kod(ctx):
     if znaleziony_kod:
         await ctx.send(f"**Kod logowania do kursu maturalnego:** `{znaleziony_kod}`")
     else:
-        await ctx.send("Nie znalazłem żadnego nowego kodu od podanego nadawcy.")
+        await ctx.send("Nowy kod logowania nie jest jeszcze dostępny.")
 
 bot.run(TOKEN)
