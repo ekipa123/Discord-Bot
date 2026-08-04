@@ -102,7 +102,7 @@ async def kod_slash(interaction: discord.Interaction):
     if znaleziony_kod:
         await interaction.followup.send(f"**Kod logowania do kursu maturalnego:** `{znaleziony_kod}`")
     else:
-        await interaction.followup.send("Nowy kod logowania nie jest jeszcze dostępny.")
+        await interaction.followup.send(f"**Nowy kod logowania nie jest jeszcze dostępny.**")
 
 @bot.command()
 async def kod(ctx):
@@ -111,6 +111,6 @@ async def kod(ctx):
     if znaleziony_kod:
         await ctx.send(f"**Kod logowania do kursu maturalnego:** `{znaleziony_kod}`")
     else:
-        await ctx.send("Nowy kod logowania nie jest jeszcze dostępny.")
+        await ctx.send(f"**Nowy kod logowania nie jest jeszcze dostępny.**")
 
 bot.run(TOKEN)
